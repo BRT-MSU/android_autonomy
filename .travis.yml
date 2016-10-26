@@ -4,6 +4,8 @@ env:
   global:
     - ANDROID_TARGET=android-15
     - ANDROID_ABI=armeabi-v7a
+notifications:
+  slack: msunasarmc:xP9UIuepRaIlOPQUzW2O7g9Q
 android:
   components:
   - tools
