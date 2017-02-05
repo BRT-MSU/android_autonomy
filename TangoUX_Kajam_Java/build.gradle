@@ -1,0 +1,2 @@
+configurations.create("default")
+artifacts.add("default", file('TangoUX_Kajam_Java.aar'))
