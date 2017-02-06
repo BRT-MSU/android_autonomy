@@ -201,7 +201,7 @@ public class AutonomyActivity extends Activity {
         arduinoConnection = new ArduinoConnection(this);
 
         //Initialize Path to dig site
-	autonomyState = AutonomyState.INITIALIZE;
+	    autonomyState = AutonomyState.INITIALIZE;
         path.add(1.5);
         path.add(1.89);
         path.add(4.44);
@@ -364,17 +364,8 @@ public class AutonomyActivity extends Activity {
                             @Override
                             public void run() {
                                 synchronized (arduinoLock) {
-                                    // Display Arduino Status
-                                    String arduinoFoundText = arduinoConnection.arduinoConnected() ? "Arduino Found" : "Arduino Not Found";
-                                    arduinoFoundText = arduinoFoundText + arduinoConnection.foundStatus();
-                                    arduinoFoundView.setText(arduinoFoundText);
-                                    final boolean arduinoFound = arduinoConnection.arduinoConnected();
-                                    if (arduinoFound)
-                                        arduinoFoundView.setTextColor(getResources().getColor(R.color.tango_green));
-                                    else
-                                        arduinoFoundView.setTextColor(getResources().getColor(R.color.status_tick_red));
+                                    displayArduinoStatus();
 
-                                    receivedDataView.setText("Received Data: " + arduinoConnection.getReceivedData());
                                 }
                                 synchronized (mUiPoseLock) {
                                     if (mPose == null) {
@@ -398,130 +389,13 @@ public class AutonomyActivity extends Activity {
 
                                         autonomyActive = checkBox.isChecked();
                                     }
-
-                                    // displays the Tango's translation
-                                    String poseString = "Tango Pose: {" + decimalFormat.format(mPose.translation[0]) + ", " +
-                                            decimalFormat.format(mPose.translation[1]) + ", " +
-                                            decimalFormat.format(mPose.translation[2]) + "}";
-                                    poseTextView.setText(poseString);
-
-                                    // displays the Tango's rotation
-                                    String rotationString = "Tango Rotation: {" + decimalFormat.format(mPose.rotation[0]) + ", " +
-                                            decimalFormat.format(mPose.rotation[1]) + ", " +
-                                            decimalFormat.format(mPose.rotation[2]) + ", " +
-                                            decimalFormat.format(mPose.rotation[3]) + "}";
-                                    rotationTextView.setText(rotationString);
-
-                                    // displays the Tango's yaw
-                                    String yawString = "Tango yaw: " + decimalFormat.format(yaw) + " degrees";
-                                    yawView.setText(yawString);
-
-                                    // displays angle between the Tango and destination
-                                    String angleString = "Angle between Tango and destination: " + decimalFormat.format(angle) +
-                                            " degrees";
-
-                                    // display the angle
-                                    angleView.setText(angleString);
-
-                                    // displays the destination position
-                                    String destinationString = "Destination: {" + decimalFormat.format(destinationTranslation[0]) + ", " +
-                                            decimalFormat.format(destinationTranslation[1]) + ", " +
-                                            decimalFormat.format(destinationTranslation[2]) + "}";
-                                    destinationTextView.setText(destinationString);
-
-                                    // displays the buffer
-                                    incomingCommandsView.setText("Incoming Commands: " + arduinoConnection.bufferValues());
-                                    incomingCommandsView.refreshDrawableState();
-
+                                    updateUI();
                                     extractYaw();
-
-                                    // display the angle between the Tango and destination
-                                    double deltaX = destinationTranslation[0] - mPose.translation[0];
-                                    double deltaY = destinationTranslation[1] - mPose.translation[1];
-
-                                    distance = Math.sqrt(Math.pow(deltaX, 2) + Math.pow(deltaY, 2));
-
-                                    angle = Math.toDegrees(Math.atan2(deltaY, deltaX));
-
-                                    if (angle < 0) {
-                                        angle += 360;
-                                    }
-
-                                    angle = angle % 360;
-
-                                    adjustedAngle = yaw - angle;
-                                    adjustedAngle += 360;
-                                    adjustedAngle %= 360;
-
-                                    if (adjustedAngle > 180) {
-                                        adjustedAngle = adjustedAngle - 360;
-                                    }
+                                    findAdjustedAngle();
 
                                     if (autonomyActive) {
-                                        initialPositionView.setText("Initial Position: " + initializationPosition);
-                                        switch (autonomyState) {
-                                            case INITIALIZE:
-                                                // Send 'R' to arduino
-                                                updateIR('R');
-
-                                                if (true || arduinoConnection.getReceivedData() != null) {
-                                                    if (true || !arduinoConnection.getReceivedData().isEmpty() && arduinoConnection.getReceivedData().matches("[0-9]")) {
-                                                        try {
-                                                            //initializationPosition = Integer.parseInt(arduinoConnection.getReceivedData());
-                                                            startingPos = getStartingPos();
-                                                            if(startingPos == InitialPosition.A_WEST || startingPos == InitialPosition.B_WEST){
-                                                                rotatePath(1);
-                                                            }else if(startingPos == InitialPosition.A_SOUTH || startingPos == InitialPosition.B_SOUTH){
-                                                                rotatePath(2);
-                                                            }else if(startingPos == InitialPosition.A_EAST || startingPos == InitialPosition.B_EAST){
-                                                                rotatePath(3);
-                                                            }
-                                                            destinationTranslation[0] = path.get(0);
-                                                            destinationTranslation[1] = path.get(1);
-                                                            autonomyState = AutonomyState.DRIVE;
-                                                        } catch (Exception ex) {
-                                                            Log.v(TAG, "Failed to get starting pos: " + ex.getLocalizedMessage());
-                                                        }
-                                                    }
-                                                }
-                                                receivedDataView.setText("Received Data: " + arduinoConnection.getReceivedData());
-
-                                                // Send ' ' to arduino
-                                                updateIR(' ');
-                                                break;
-                                            case DRIVE:
-                                                final String driveString = drive(distance, adjustedAngle);
-                                                adjustedAngleView.post(new Runnable() {
-                                                    @Override
-                                                    public void run() {
-                                                        adjustedAngleView.setText(driveString);
-                                                    }
-                                                });
-                                                break;
-                                            case DIG:
-                                                initiateDigProcedure();
-                                                break;
-                                            case RETURN:
-                                                final String returnString = drive(distance, adjustedAngle);
-                                                adjustedAngleView.post(new Runnable() {
-                                                    @Override
-                                                    public void run() {
-                                                        adjustedAngleView.setText(returnString);
-                                                    }
-                                                });
-                                                break;
-                                            case DUMP:
-                                                initiateDumpProcedure();
-                                                break;
-                                            case DONE:
-                                                digView.post(new Runnable() {
-                                                    @Override
-                                                    public void run() {
-                                                        digView.setText("Done Digging");
-                                                    }
-                                                });
-                                                break;
-                                        }
+                                        initialPositionView.setText("Initial Position: " + initializationPosition);//Is this necessary?
+                                        performNextAutonomyAction();
                                     }
                                 }
                                 synchronized (mUiDepthLock) {
@@ -543,6 +417,146 @@ public class AutonomyActivity extends Activity {
                 }
             }
         }).start();
+    }
+
+    private void displayArduinoStatus() {
+        // Display Arduino Status
+        String arduinoFoundText = arduinoConnection.arduinoConnected() ? "Arduino Found" : "Arduino Not Found";
+        arduinoFoundText = arduinoFoundText + arduinoConnection.foundStatus();
+        arduinoFoundView.setText(arduinoFoundText);
+        final boolean arduinoFound = arduinoConnection.arduinoConnected();
+        if (arduinoFound)
+            arduinoFoundView.setTextColor(getResources().getColor(R.color.tango_green));
+        else
+            arduinoFoundView.setTextColor(getResources().getColor(R.color.status_tick_red));
+
+        receivedDataView.setText("Received Data: " + arduinoConnection.getReceivedData());
+    }
+
+    private void performNextAutonomyAction() {
+        switch (autonomyState) {
+            case INITIALIZE:
+                // Send 'R' to arduino
+                updateIR('R');
+
+                if (true || arduinoConnection.getReceivedData() != null) {
+                    if (true || !arduinoConnection.getReceivedData().isEmpty() && arduinoConnection.getReceivedData().matches("[0-9]")) {
+                        try {
+                            //initializationPosition = Integer.parseInt(arduinoConnection.getReceivedData());
+                            startingPos = getStartingPos();
+                            if(startingPos == InitialPosition.A_WEST || startingPos == InitialPosition.B_WEST){
+                                rotatePath(1);
+                            }else if(startingPos == InitialPosition.A_SOUTH || startingPos == InitialPosition.B_SOUTH){
+                                rotatePath(2);
+                            }else if(startingPos == InitialPosition.A_EAST || startingPos == InitialPosition.B_EAST){
+                                rotatePath(3);
+                            }
+                            destinationTranslation[0] = path.get(0);
+                            destinationTranslation[1] = path.get(1);
+                            autonomyState = AutonomyState.DRIVE;
+                        } catch (Exception ex) {
+                            Log.v(TAG, "Failed to get starting pos: " + ex.getLocalizedMessage());
+                        }
+                    }
+                }
+                receivedDataView.setText("Received Data: " + arduinoConnection.getReceivedData());
+
+                // Send ' ' to arduino
+                updateIR(' ');
+                break;
+            case DRIVE:
+                final String driveString = drive(distance, adjustedAngle);
+                adjustedAngleView.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        adjustedAngleView.setText(driveString);
+                    }
+                });
+                break;
+            case DIG:
+                initiateDigProcedure();
+                break;
+            case RETURN:
+                final String returnString = drive(distance, adjustedAngle);
+                adjustedAngleView.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        adjustedAngleView.setText(returnString);
+                    }
+                });
+                break;
+            case DUMP:
+                initiateDumpProcedure();
+                break;
+            case DONE:
+                digView.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        digView.setText("Done Digging");
+                    }
+                });
+                break;
+        }
+    }
+
+    private void findAdjustedAngle() {
+        // display the angle between the Tango and destination
+        double deltaX = destinationTranslation[0] - mPose.translation[0];
+        double deltaY = destinationTranslation[1] - mPose.translation[1];
+
+        distance = Math.sqrt(Math.pow(deltaX, 2) + Math.pow(deltaY, 2));
+
+        angle = Math.toDegrees(Math.atan2(deltaY, deltaX));
+
+        if (angle < 0) {
+            angle += 360;
+        }
+
+        angle = angle % 360;
+
+        adjustedAngle = yaw - angle;
+        adjustedAngle += 360;
+        adjustedAngle %= 360;
+
+        if (adjustedAngle > 180) {
+            adjustedAngle = adjustedAngle - 360;
+        }
+    }
+
+    private void updateUI() {
+        // displays the Tango's translation
+        String poseString = "Tango Pose: {" + decimalFormat.format(mPose.translation[0]) + ", " +
+                decimalFormat.format(mPose.translation[1]) + ", " +
+                decimalFormat.format(mPose.translation[2]) + "}";
+        poseTextView.setText(poseString);
+
+        // displays the Tango's rotation
+        String rotationString = "Tango Rotation: {" + decimalFormat.format(mPose.rotation[0]) + ", " +
+                decimalFormat.format(mPose.rotation[1]) + ", " +
+                decimalFormat.format(mPose.rotation[2]) + ", " +
+                decimalFormat.format(mPose.rotation[3]) + "}";
+        rotationTextView.setText(rotationString);
+
+        // displays the Tango's yaw
+        String yawString = "Tango yaw: " + decimalFormat.format(yaw) + " degrees";
+        yawView.setText(yawString);
+
+        // displays angle between the Tango and destination
+        String angleString = "Angle between Tango and destination: " + decimalFormat.format(angle) +
+                " degrees";
+
+        // display the angle
+        angleView.setText(angleString);
+
+        // displays the destination position
+        String destinationString = "Destination: {" + decimalFormat.format(destinationTranslation[0]) + ", " +
+                decimalFormat.format(destinationTranslation[1]) + ", " +
+                decimalFormat.format(destinationTranslation[2]) + "}";
+        destinationTextView.setText(destinationString);
+
+        // displays the buffer
+        incomingCommandsView.setText("Incoming Commands: " + arduinoConnection.bufferValues());
+        incomingCommandsView.refreshDrawableState();
     }
 
     private String drive(double distance, double adjustedAngle) {
