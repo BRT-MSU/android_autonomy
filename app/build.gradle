@@ -1,21 +1,17 @@
 apply plugin: 'com.android.application'
-apply plugin: 'jacoco-android'
 
 android {
     compileSdkVersion 23
-    buildToolsVersion "23.0.3"
+    buildToolsVersion "22.0.1"
+
     defaultConfig {
-        applicationId "com.msu.nasa.rmc.automation"
-        minSdkVersion 15
+        applicationId "com.example.angustomlinson.tangoautonomy20"
+        minSdkVersion 19
         targetSdkVersion 23
         versionCode 1
         versionName "1.0"
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
-        debug{
-            testCoverageEnabled true
-        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
@@ -24,10 +20,15 @@ android {
 }
 
 dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
-    androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
-        exclude group: 'com.android.support', module: 'support-annotations'
-    })
-    compile 'com.android.support:appcompat-v7:23.4.0'
+    compile fileTree(include: ['*.jar'], dir: 'libs')
     testCompile 'junit:junit:4.12'
+    compile 'com.android.support:appcompat-v7:23.1.0'
+    compile 'com.android.support:design:23.1.0'
+    compile files('libs/TangoSDK_Kajam_Java.jar')
+    compile project(':TangoSupport_Kajam_Java')
+    compile project(':TangoUX_Kajam_Java')
+    compile files('libs/usbseriallibrary.jar')
+    compile 'com.github.felHR85:UsbSerial:4.5'
+    compile 'com.google.android.gms:play-services-appindexing:8.1.0'
 }
+
