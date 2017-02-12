@@ -45,12 +45,12 @@ import java.util.Enumeration;
 public class AutonomyActivity extends Activity {
 
     // TANGO VARIABLES:
-    private static final String TAG = AutonomyActivity.class.getSimpleName();
+    static final String TAG = AutonomyActivity.class.getSimpleName();
     private static final String NETWORK_TAG = AutonomyActivity.class.getSimpleName() + " (Network)";
     private boolean mIsTangoServiceConnected;
     private Tango mTango;
     private TangoConfig mConfig;
-    private TangoPoseData mPose;
+    TangoPoseData mPose;
     private TangoXyzIjData mXyzIj;
     private TangoUx mTangoUx;
 
@@ -70,9 +70,9 @@ public class AutonomyActivity extends Activity {
     private static final int UPDATE_INTERVAL_MS = 100;
     private final Object mUiPoseLock = new Object();
     private final Object mUiDepthLock = new Object();
-    private final Object arduinoLock = new Object();
-    private final Object bufferLock = new Object();
-    private DecimalFormat decimalFormat = new DecimalFormat("#.###");
+    final Object arduinoLock = new Object();
+    final Object bufferLock = new Object();
+    DecimalFormat decimalFormat = new DecimalFormat("#.###");
 
     // COLOR CAMERA INTRINSICS AND POSE VARIABLES:
     public TangoCameraIntrinsics colorCameraIntrinsics;
@@ -88,39 +88,19 @@ public class AutonomyActivity extends Activity {
     public DoubleBuffer frontPlaneBuffer;
 
     // ARDUINO VARIABLES:
-    private ArduinoConnection arduinoConnection; // declare Connection to Arduino
+    public ArduinoConnection arduinoConnection; // declare Connection to Arduino
 
     // NETWORK VARIABLES:
     private boolean networkingEnabled = false;
 
     // AUTONOMY VARIABLES:
-    final static double DEFAULT_X = 0, DEFAULT_Y = 2.94;
+    /*final static double DEFAULT_X = AutonomyLogic.DEFAULT_X, DEFAULT_Y = AutonomyLogic.DEFAULT_Y;
 
     private int initializationPosition;
 
-    private enum AutonomyState {
-        INITIALIZE,
-        DRIVE,
-        DIG,
-        RETURN,
-        DUMP,
-        DONE
-    }
-
-    private enum InitialPosition {
-        A_NORTH,
-        A_EAST,
-        A_SOUTH,
-        A_WEST,
-        B_NORTH,
-        B_EAST,
-        B_SOUTH,
-        B_WEST
-    }
-
-    private boolean gentleTurns = false;
-    private int leftSpeed = 0;
-    private int rightSpeed = 0;
+    private boolean gentleTurns = AutonomyLogic.PERFORM_GENTLE_TURNS;
+    //private int leftSpeed = 0;
+    //private int rightSpeed = 0;
 
     private boolean autonomyActive = false;
 
@@ -143,6 +123,9 @@ public class AutonomyActivity extends Activity {
 
     double ANGLE_TOLERANCE = 5;
     double DISTANCE_TOLERANCE = 0.5;
+    */
+
+    AutonomyLogic autonomyLogic = new AutonomyLogic(this);
 
     // TextViews and Buttons:
     TextView digView;
@@ -200,18 +183,7 @@ public class AutonomyActivity extends Activity {
         //Initialize Network
         arduinoConnection = new ArduinoConnection(this);
 
-        //Initialize Path to dig site
-	    autonomyState = AutonomyState.INITIALIZE;
-        path.add(1.5);
-        path.add(1.89);
-        path.add(4.44);
-        path.add(1.89);
-        path.add(5.64);
-        path.add(0.945);
-
-        // Initialize Destination
-        //double xDestination = DEFAULT_X, yDestination = DEFAULT_Y;
-        destinationTranslation = new double[]{path.get(0), path.get(1), 0};
+        autonomyLogic.initializeDrivePath();
 
         startUIThread();
     }
@@ -371,7 +343,7 @@ public class AutonomyActivity extends Activity {
                                     if (mPose == null) {
                                         return;
                                     }
-                                    initialPositionView.setText("Initial Position: " + initializationPosition);
+                                    initialPositionView.setText("Initial Position: " + autonomyLogic.initializationPosition);
 
                                     // Autonomy Functionality
                                     if (!networkingEnabled) {
@@ -387,15 +359,15 @@ public class AutonomyActivity extends Activity {
                                             }
                                         });
 
-                                        autonomyActive = checkBox.isChecked();
+                                        autonomyLogic.autonomyActive = checkBox.isChecked();
                                     }
                                     updateUI();
                                     extractYaw();
-                                    findAdjustedAngle();
+                                    autonomyLogic.findAdjustedAngle();
 
-                                    if (autonomyActive) {
-                                        initialPositionView.setText("Initial Position: " + initializationPosition);//Is this necessary?
-                                        performNextAutonomyAction();
+                                    if (autonomyLogic.autonomyActive) {
+                                        initialPositionView.setText("Initial Position: " + autonomyLogic.initializationPosition);//Is this necessary?
+                                        autonomyLogic.performNextAutonomyAction();
                                     }
                                 }
                                 synchronized (mUiDepthLock) {
@@ -433,96 +405,6 @@ public class AutonomyActivity extends Activity {
         receivedDataView.setText("Received Data: " + arduinoConnection.getReceivedData());
     }
 
-    private void performNextAutonomyAction() {
-        switch (autonomyState) {
-            case INITIALIZE:
-                // Send 'R' to arduino
-                updateIR('R');
-
-                if (true || arduinoConnection.getReceivedData() != null) {
-                    if (true || !arduinoConnection.getReceivedData().isEmpty() && arduinoConnection.getReceivedData().matches("[0-9]")) {
-                        try {
-                            //initializationPosition = Integer.parseInt(arduinoConnection.getReceivedData());
-                            startingPos = getStartingPos();
-                            if(startingPos == InitialPosition.A_WEST || startingPos == InitialPosition.B_WEST){
-                                rotatePath(1);
-                            }else if(startingPos == InitialPosition.A_SOUTH || startingPos == InitialPosition.B_SOUTH){
-                                rotatePath(2);
-                            }else if(startingPos == InitialPosition.A_EAST || startingPos == InitialPosition.B_EAST){
-                                rotatePath(3);
-                            }
-                            destinationTranslation[0] = path.get(0);
-                            destinationTranslation[1] = path.get(1);
-                            autonomyState = AutonomyState.DRIVE;
-                        } catch (Exception ex) {
-                            Log.v(TAG, "Failed to get starting pos: " + ex.getLocalizedMessage());
-                        }
-                    }
-                }
-                receivedDataView.setText("Received Data: " + arduinoConnection.getReceivedData());
-
-                // Send ' ' to arduino
-                updateIR(' ');
-                break;
-            case DRIVE:
-                final String driveString = drive(distance, adjustedAngle);
-                adjustedAngleView.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        adjustedAngleView.setText(driveString);
-                    }
-                });
-                break;
-            case DIG:
-                initiateDigProcedure();
-                break;
-            case RETURN:
-                final String returnString = drive(distance, adjustedAngle);
-                adjustedAngleView.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        adjustedAngleView.setText(returnString);
-                    }
-                });
-                break;
-            case DUMP:
-                initiateDumpProcedure();
-                break;
-            case DONE:
-                digView.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        digView.setText("Done Digging");
-                    }
-                });
-                break;
-        }
-    }
-
-    private void findAdjustedAngle() {
-        // display the angle between the Tango and destination
-        double deltaX = destinationTranslation[0] - mPose.translation[0];
-        double deltaY = destinationTranslation[1] - mPose.translation[1];
-
-        distance = Math.sqrt(Math.pow(deltaX, 2) + Math.pow(deltaY, 2));
-
-        angle = Math.toDegrees(Math.atan2(deltaY, deltaX));
-
-        if (angle < 0) {
-            angle += 360;
-        }
-
-        angle = angle % 360;
-
-        adjustedAngle = yaw - angle;
-        adjustedAngle += 360;
-        adjustedAngle %= 360;
-
-        if (adjustedAngle > 180) {
-            adjustedAngle = adjustedAngle - 360;
-        }
-    }
-
     private void updateUI() {
         // displays the Tango's translation
         String poseString = "Tango Pose: {" + decimalFormat.format(mPose.translation[0]) + ", " +
@@ -538,20 +420,20 @@ public class AutonomyActivity extends Activity {
         rotationTextView.setText(rotationString);
 
         // displays the Tango's yaw
-        String yawString = "Tango yaw: " + decimalFormat.format(yaw) + " degrees";
+        String yawString = "Tango yaw: " + decimalFormat.format(autonomyLogic.yaw) + " degrees";
         yawView.setText(yawString);
 
         // displays angle between the Tango and destination
-        String angleString = "Angle between Tango and destination: " + decimalFormat.format(angle) +
+        String angleString = "Angle between Tango and destination: " + decimalFormat.format(autonomyLogic.angle) +
                 " degrees";
 
         // display the angle
         angleView.setText(angleString);
 
         // displays the destination position
-        String destinationString = "Destination: {" + decimalFormat.format(destinationTranslation[0]) + ", " +
-                decimalFormat.format(destinationTranslation[1]) + ", " +
-                decimalFormat.format(destinationTranslation[2]) + "}";
+        String destinationString = "Destination: {" + decimalFormat.format(autonomyLogic.destinationTranslation[0]) + ", " +
+                decimalFormat.format(autonomyLogic.destinationTranslation[1]) + ", " +
+                decimalFormat.format(autonomyLogic.destinationTranslation[2]) + "}";
         destinationTextView.setText(destinationString);
 
         // displays the buffer
@@ -559,246 +441,11 @@ public class AutonomyActivity extends Activity {
         incomingCommandsView.refreshDrawableState();
     }
 
-    private String drive(double distance, double adjustedAngle) {
-
-        arduinoFound = arduinoConnection.arduinoConnected();
-
-        String adjustedAngleString;
-
-        leftSpeed = 0;
-        rightSpeed = 0;
-
-        movingBackwards = autonomyState == AutonomyState.RETURN;
-
-        withinAngleTolerance = Math.abs(adjustedAngle) < ANGLE_TOLERANCE;
-        withinReverseAngleTolerance = movingBackwards &&
-                (adjustedAngle > 180 - ANGLE_TOLERANCE || adjustedAngle < ANGLE_TOLERANCE - 180);
-
-        if (distance > DISTANCE_TOLERANCE) {
-            if (withinAngleTolerance || withinReverseAngleTolerance) {
-                adjustedAngleString = "Go straight.";
-                leftSpeed = (movingBackwards) ? -75 : 75;
-                rightSpeed = (movingBackwards) ? -75 : 75;
-            } else {
-                if ((!movingBackwards && adjustedAngle < 0) || (movingBackwards && adjustedAngle > 0)) {
-                    adjustedAngleString = "Go left " + decimalFormat.format(Math.abs(adjustedAngle)) + " degrees";
-                    leftSpeed = (gentleTurns) ? 0 : -75;
-                    rightSpeed = 75;
-                } else {
-                    adjustedAngleString = "Go right " + decimalFormat.format(Math.abs(adjustedAngle)) + " degrees";
-                    rightSpeed = (gentleTurns) ? 0 : -75;
-                    leftSpeed = 75;
-                }
-            }
-        } else {
-            adjustedAngleString = "You have arrived at your destination.";
-
-            if (autonomyState == AutonomyState.DRIVE) {
-                if (2 * (currentPoint + 1) == path.size()) {
-                    autonomyState = AutonomyState.DIG;
-                } else {
-                    currentPoint++;
-                }
-            } else {
-                if (currentPoint == 0) {
-                    autonomyState = AutonomyState.DUMP;
-                } else {
-                    currentPoint--;
-                }
-            }
-            destinationTranslation[0] = path.get(2 * currentPoint);
-            destinationTranslation[1] = path.get(2 * currentPoint + 1);
-        }
-        updateLeft(leftSpeed);
-        updateRight(rightSpeed);
-
-        //Send new commands to Arduino
-        if (arduinoFound) {
-            synchronized (bufferLock){
-                arduinoConnection.sendCommands();
-            }
-        }
-
-        return adjustedAngleString;
-    }
-
-    private void initiateDigProcedure() {
-        int downTime = 10; // 10/10 of a second
-        int digTime = 100; // 3 seconds
-        int upTime = 10;
-
-        digView.post(new Runnable() {
-            @Override
-            public void run() {
-                digView.setText("Digging");
-            }
-        });
-
-        for (int i = 0; i < 5; i++) {
-            // Time is in 10ths of a second
-            actuateDown(downTime);
-            doDig(digTime);
-        }
-
-        digView.post(new Runnable() {
-            @Override
-            public void run() {
-                digView.setText("Has Dug, Not Digging");
-            }
-        });
-
-        actuateUp(upTime);
-        destinationTranslation[0] = path.get(2 * currentPoint);
-        destinationTranslation[1] = path.get(2 * currentPoint + 1);
-        autonomyState = AutonomyState.RETURN;
-    }
-
-    private void initiateDumpProcedure() {
-        updateLeft(0);
-        updateRight(0);
-        int dumpTime = 100; // 10 seconds
-        doDump(dumpTime);
-        autonomyState = AutonomyState.DRIVE;
-    }
-
-    private void updateLeft(int speed) {
-        synchronized (bufferLock){
-            arduinoConnection.setLeftForward((byte) speed);
-        }
-    }
-
-    private void updateRight(int speed) {
-        synchronized (bufferLock){
-            arduinoConnection.setRightForward((byte) speed);
-        }
-    }
-
-    private void updateIR(char character) {
+    /*public void updateIR(char character) {
         synchronized (bufferLock){
             arduinoConnection.setIR((byte) character);
         }
-    }
-
-    private void actuateDown(int time) {
-        synchronized (bufferLock){
-            arduinoConnection.setActuate((byte) (-80));
-        }
-        if (arduinoConnection.arduinoConnected()) {
-            synchronized (bufferLock) {
-                arduinoConnection.sendCommands();
-            }
-        }
-        try {
-            Thread.sleep(time * 100);
-        } catch (Exception ignored) {
-
-        }
-
-        synchronized (bufferLock){
-            arduinoConnection.setActuate((byte) (0));
-            arduinoConnection.sendCommands();
-        }
-    }
-
-    private void actuateUp(int time) {
-        synchronized (bufferLock){
-            arduinoConnection.setActuate((byte) (80));
-        }
-        if (arduinoConnection.arduinoConnected()) {
-            synchronized (bufferLock){
-                arduinoConnection.sendCommands();
-            }
-        }
-
-        try {
-            Thread.sleep(time * 100);
-        } catch (Exception ignored) {
-
-        }
-
-        synchronized (bufferLock){
-            arduinoConnection.setActuate((byte) (0));
-            arduinoConnection.sendCommands();
-        }
-    }
-
-    private String doDig(int time) {
-        synchronized (bufferLock){
-            arduinoConnection.setDig((byte) (time));
-        }
-        if (arduinoConnection.arduinoConnected()) {
-            synchronized (bufferLock){
-                arduinoConnection.sendCommands();
-            }
-        }
-
-        try {
-            Thread.sleep(time * 100 + 100);
-        } catch (Exception ignored) {
-
-        }
-
-        synchronized (bufferLock) {
-            arduinoConnection.setDig((byte) (0));
-        }
-
-        return null;
-    }
-
-    private String doDump(int time) {
-        synchronized (bufferLock){
-            arduinoConnection.setDump((byte) (time));
-        }
-        if (arduinoConnection.arduinoConnected()) {
-            synchronized (bufferLock){
-                arduinoConnection.sendCommands();
-            }
-        }
-
-        try {
-            Thread.sleep(time * 100 + 100);
-        } catch (Exception ignored) {
-
-        }
-
-        synchronized (bufferLock){
-            arduinoConnection.setDump((byte) (0));
-        }
-
-        return null;
-    }
-
-    private void rotatePath(int numTimes){
-        Log.v(TAG, "Attempting to rotate " + numTimes);
-        if(numTimes == 1 || numTimes == 2 || numTimes == 3){
-            //rotate 90 degrees CW by mapping each (x,y) to (y,-x)
-            for(int i=0; i<path.size(); i+=2){
-            double futureY = -path.get(i);
-            path.set(i, path.get(i+1));
-            path.set(i+1, futureY);
-            }
-            rotatePath(numTimes-1);
-        }else if(numTimes != 0){
-            Log.v(TAG, "Attempted to rotate " + numTimes + " times, invalid");
-        }
-    }
-
-    private InitialPosition getStartingPos(){
-        String textInputStartingPos = angleOffsetField.getText().toString();
-        InitialPosition startingPos = InitialPosition.A_NORTH;
-        if(textInputStartingPos.equals("90")){
-            startingPos = InitialPosition.A_EAST;
-        }else if(textInputStartingPos.equals("180")){
-            startingPos = InitialPosition.A_SOUTH;
-        }else if(textInputStartingPos.equals("270")){
-            startingPos = InitialPosition.A_WEST;
-        }else if (!textInputStartingPos.equals("0")){
-            Log.v(TAG, "Incorrect starting position, " + textInputStartingPos + ", no action will be taken.");
-        }
-        Log.v(TAG, "Got startingPos");
-        return startingPos;
-    }
-
+    }*/
 
     private void setupExtrinsics() {
         TangoCoordinateFramePair framePair = new TangoCoordinateFramePair();
@@ -870,12 +517,6 @@ public class AutonomyActivity extends Activity {
         tangoUx.setLayout(uxLayout);
         tangoUx.setUxExceptionEventListener(mUxExceptionListener);
         return tangoUx;
-    }
-
-    // Method called in content_main.xml when button is clicked
-    public void reinitializeDestination(View view) {
-        destinationTranslation[0] = mPose.translation[0] + DEFAULT_X;
-        destinationTranslation[1] = mPose.translation[1] + DEFAULT_Y;
     }
 
     /*******************************************************
@@ -955,6 +596,7 @@ public class AutonomyActivity extends Activity {
     }
 
     private void extractYaw() {
+        double yaw = autonomyLogic.yaw;
         yaw = Math.toDegrees(Math.atan2((2 * ((mPose.rotation[0] * mPose.rotation[1]) + (mPose.rotation[2] * mPose.rotation[3]))),
                 (Math.pow(mPose.rotation[3], 2) + Math.pow(mPose.rotation[0], 2) -
                         Math.pow(mPose.rotation[1], 2) - Math.pow(mPose.rotation[2], 2))));
@@ -967,7 +609,7 @@ public class AutonomyActivity extends Activity {
 
         yaw += yawOffset;
 
-        yaw = yaw % 360;
+        autonomyLogic.yaw = yaw % 360;
     }
 
 
@@ -1000,7 +642,7 @@ public class AutonomyActivity extends Activity {
 
             Log.v(NETWORK_TAG, "About to read message");
             byte[] remoteMotorBuffer = displayMessage.getByteArray("BUFFER");
-            activity.autonomyActive = displayMessage.getBoolean("AUTONOMY_ACTIVE");
+            activity.autonomyLogic.autonomyActive = displayMessage.getBoolean("AUTONOMY_ACTIVE");
             Log.v(NETWORK_TAG, "read message");
 
             if (remoteMotorBuffer == null) Log.v(NETWORK_TAG, "null");
@@ -1008,7 +650,7 @@ public class AutonomyActivity extends Activity {
                 Log.v(NETWORK_TAG, "remoteBuffer: " + remoteMotorBuffer[0] + " " + remoteMotorBuffer[1] + " " + remoteMotorBuffer[3]);
 
             //TODO: Put these commands somewhere else.
-            if (!activity.autonomyActive) {
+            if (!activity.autonomyLogic.autonomyActive) {
                 assert remoteMotorBuffer != null;
                 synchronized (activity.bufferLock) {
                     activity.arduinoConnection.setLeftForward(remoteMotorBuffer[ArduinoConnection.Motors.LEFT.ordinal()]);
@@ -1024,11 +666,11 @@ public class AutonomyActivity extends Activity {
             activity.networkStatusView.post(new Runnable() {
                 @Override
                 public void run() {
-                    activity.networkStatusView.setText("Connected to computer! Autonomy Active: " + activity.autonomyActive);
+                    activity.networkStatusView.setText("Connected to computer! Autonomy Active: " + activity.autonomyLogic.autonomyActive);
                 }
             });
 
-            if (!activity.autonomyActive)
+            if (!activity.autonomyLogic.autonomyActive)
                 if (activity.arduinoConnection.arduinoConnected()){
                     synchronized (activity.bufferLock){
                         activity.arduinoConnection.sendCommands();
