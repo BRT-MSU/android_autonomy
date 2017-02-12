@@ -796,7 +796,7 @@ public class AutonomyActivity extends Activity {
             Log.v(TAG, "Incorrect starting position, " + textInputStartingPos + ", no action will be taken.");
         }
         Log.v(TAG, "Got startingPos");
-	return startingPos;
+        return startingPos;
     }
 
 
