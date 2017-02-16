@@ -3,6 +3,7 @@ package com.msu.initialization;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.Matrix;
 import android.util.Log;
 
 import java.nio.ByteBuffer;
@@ -13,11 +14,14 @@ import java.nio.ByteBuffer;
 
 public class PictureResult {
     public String side;
-    private PictureResult(String side) {
+    public int left, right;
+    private PictureResult(String side, int left, int right) {
         this.side = side;
+        this.left = left;
+        this.right = right;
     }
 
-    public static PictureResult process(byte[] data) {
+    public static PictureResult process(byte[] data, int id) {
         if (data == null)
             return null;
 
@@ -26,25 +30,36 @@ public class PictureResult {
         Log.d("Bitmap Size", bitmap.getWidth() + " " + bitmap.getHeight());
 
         Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap, 100, 100, true);
+
+        Matrix matrix = new Matrix();
+        matrix.postRotate(90);
+
+        if (id == 1) {
+            matrix.postScale(-1, 1);
+        }
+
+        Bitmap rotatedBitmap = Bitmap.createBitmap(scaledBitmap, 0, 0, 100, 100, matrix, true);
+
         bitmap.recycle();
-        bitmap = scaledBitmap;
+        scaledBitmap.recycle();
+        bitmap = rotatedBitmap;
         Log.d("Bitmap", "Done decoding");
         try {
             Integer leftEdge = findLeftEdge(bitmap);
             if (leftEdge == null) {
-                return new PictureResult(null);
+                return new PictureResult(null, -1, -1);
             }
             if (leftEdge > bitmap.getWidth() / 2) {
-                return new PictureResult("right");
+                return new PictureResult("A", leftEdge, -1);
             }
 
             Integer rightEdge = findRightEdge(bitmap);
             int center = (leftEdge + rightEdge) / 2;
             if (center > bitmap.getWidth() / 2) {
-                return new PictureResult("right");
+                return new PictureResult("A", leftEdge, rightEdge);
             }
 
-            return new PictureResult("left");
+            return new PictureResult("B", leftEdge, rightEdge);
         } finally {
             Log.d("Bitmap", "Done searching");
             bitmap.recycle();
@@ -74,6 +89,9 @@ public class PictureResult {
     }
 
     public static boolean threshhold(int color) {
-        return Color.green(color) > 0xE0 && Color.red(color) < 0x20 && Color.blue(color) < 0x20;
+        int red = Color.red(color);
+        int blue = Color.blue(color);
+        int green = Color.green(color);
+        return green > 50 && green - red > 20 && green - blue > 20;
     }
 }

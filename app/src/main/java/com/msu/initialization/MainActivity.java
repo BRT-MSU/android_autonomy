@@ -37,6 +37,8 @@ import android.widget.Toast;
 import com.felhr.usbserial.UsbSerialDevice;
 import com.felhr.usbserial.UsbSerialInterface;
 
+import org.w3c.dom.Text;
+
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Objects;
@@ -56,12 +58,14 @@ import static android.view.View.GONE;
 public class MainActivity extends AppCompatActivity {
     private UsbSerialDevice serialConnection;
     private SurfaceHolder holder;
+    private TextView resultView;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         holder = ((SurfaceView)findViewById(R.id.surfaceView)).getHolder();
         final Button pictureButton = (Button)findViewById(R.id.takePicture);
+        resultView = (TextView) findViewById(R.id.resultView);
         //SurfaceView view = new SurfaceView(this);
         //holder = view.getHolder();
         pictureButton.setOnClickListener(new View.OnClickListener() {
@@ -71,6 +75,7 @@ public class MainActivity extends AppCompatActivity {
                 takePicture(0);
             }
         });
+        writePosition(0);
         /*holder.addCallback(new SurfaceHolder.Callback() {
             @Override
             public void surfaceCreated(SurfaceHolder holder) {
@@ -218,15 +223,44 @@ public class MainActivity extends AppCompatActivity {
                         cam.stopPreview();
                         cam.release();
 
-                        Toast.makeText(MainActivity.this, "Got pic", Toast.LENGTH_SHORT).show();
-                        getPictureResult(id, PictureResult.process(data));
+                        getPictureResult(id, PictureResult.process(data, id));
                     }
                 });
     }
 
+    private int curPosition = 0;
     private void getPictureResult(int id, PictureResult result) {
-        Toast.makeText(this, "Got picture: "+id+ " "+result.side, Toast.LENGTH_SHORT).show();
-        takePicture(1 - id);
+        Toast.makeText(this, "Got picture: "+id+ " "+result.side+" "+result.left+" "+result.right, Toast.LENGTH_SHORT).show();
+        if (result.side == null) {
+            if (curPosition == 90 && id == 1) {
+                resultView.setText("No sign");
+                return;
+            }
+            if (id == 1) {
+                curPosition += 90;
+                writePosition(curPosition);
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        takePicture(0);
+                    }
+                }, 1000);
+            } else {
+                takePicture(id + 1);
+            }
+        } else {
+            String direction = null;
+            if (curPosition == 0 && id == 0) {
+                direction = "north";
+            } else if (curPosition == 0 && id == 1) {
+                direction = "south";
+            } else if (curPosition == 90 && id == 0) {
+                direction = "west";
+            } else if (curPosition == 90 && id == 1) {
+                direction = "east";
+            }
+            resultView.setText(result.side+ ": "+direction);
+        }
     }
 
     private void ezWait(Object o) {
