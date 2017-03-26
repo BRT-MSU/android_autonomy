@@ -1,2 +1,0 @@
-configurations.create("default")
-artifacts.add("default", file('TangoUX_Zeno_Java.aar'))
