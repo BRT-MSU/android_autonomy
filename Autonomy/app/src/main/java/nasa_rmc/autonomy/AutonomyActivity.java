@@ -115,6 +115,8 @@ public class AutonomyActivity extends Activity {
     double DISTANCE_TOLERANCE = 0.5;
     */
 
+    Connection connection;
+
     AutonomyLogic autonomyLogic = new AutonomyLogic();
 
     // TextViews and Buttons:
@@ -143,6 +145,8 @@ public class AutonomyActivity extends Activity {
         yawView = (TextView) findViewById(R.id.yawView);
 
         depthView = (TextView) findViewById(R.id.depthView);
+
+        connection = Connection.main();
 
         //autonomyLogic.initializeDrivePath();
 
@@ -274,6 +278,13 @@ public class AutonomyActivity extends Activity {
                     mCurrentPoseTimeStamp = (float) pose.timestamp;
                     mPoseDelta = mCurrentPoseTimeStamp - mLastPoseTimeStamp;
                 }
+
+                float translation[] = mPose.getTranslationAsFloats();
+                String poseViewString = "Pose (x, y, z): (" + decimalFormat.format(translation[mPose.INDEX_TRANSLATION_X]) + ", " +
+                        decimalFormat.format(translation[mPose.INDEX_TRANSLATION_Y]) + ", " +
+                        decimalFormat.format(translation[mPose.INDEX_TRANSLATION_Z]) + ")";
+
+                connection.sendMessage("-m" + poseViewString);
 
                 runOnUiThread(new Runnable() {
                     @Override
