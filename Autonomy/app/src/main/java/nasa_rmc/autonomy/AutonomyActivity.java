@@ -42,7 +42,6 @@ import java.util.ArrayList;
  */
 public class AutonomyActivity extends Activity {
     private static final String TAG = AutonomyActivity.class.getSimpleName();
-    private static final String NETWORK_TAG = AutonomyActivity.class.getSimpleName() + " (Network)";
 
     private static final String UX_EXCEPTION_EVENT_DETECTED = "Exception Detected: ";
     private static final String UX_EXCEPTION_EVENT_RESOLVED = "Exception Resolved: ";
@@ -73,51 +72,10 @@ public class AutonomyActivity extends Activity {
     private float mPoseDelta;
     private final float POSE_UPDATE_TIME = 0.1f; // in seconds
 
-    // UI THREAD VARIABLES:
-    private final Object mUiPoseLock = new Object();
-    private final Object mUiDepthLock = new Object();
-    final Object arduinoLock = new Object();
-    final Object bufferLock = new Object();
-    DecimalFormat decimalFormat = new DecimalFormat("#.###");
+    private final Object mPoseLock = new Object();
 
-    // NETWORK VARIABLES:
-    private boolean networkingEnabled = false;
-
-    // AUTONOMY VARIABLES:
-    /*final static double DEFAULT_X = AutonomyLogic.DEFAULT_X, DEFAULT_Y = AutonomyLogic.DEFAULT_Y;
-
-    private int initializationPosition;
-
-    private boolean gentleTurns = AutonomyLogic.PERFORM_GENTLE_TURNS;
-    //private int leftSpeed = 0;
-    //private int rightSpeed = 0;
-
-    private boolean autonomyActive = false;
-
-    public double[] destinationTranslation;
-    ArrayList<Double> path = new ArrayList<Double>();
-    int currentPoint = -1;
-
-    private double yaw;
-    private double angle;
-    private double adjustedAngle;
-    private double distance;
-
-    boolean arduinoFound;
-    boolean movingBackwards;
-    boolean withinAngleTolerance;
-    boolean withinReverseAngleTolerance;
-
-    private AutonomyState autonomyState;
-    private InitialPosition startingPos;
-
-    double ANGLE_TOLERANCE = 5;
-    double DISTANCE_TOLERANCE = 0.5;
-    */
-
-    Connection connection;
-
-    AutonomyLogic autonomyLogic = new AutonomyLogic();
+    Data data;
+    LogicContext logicContext;
 
     // TextViews and Buttons:
     TextView adjustedAngleView;
@@ -146,9 +104,15 @@ public class AutonomyActivity extends Activity {
 
         depthView = (TextView) findViewById(R.id.depthView);
 
-        connection = Connection.main();
+        data = new Data();
+        logicContext = new LogicContext(data);
 
-        //autonomyLogic.initializeDrivePath();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                logicContext.start();
+            }
+        }).start();
 
         DisplayManager displayManager = (DisplayManager) getSystemService(DISPLAY_SERVICE);
         if (displayManager != null) {
@@ -255,6 +219,8 @@ public class AutonomyActivity extends Activity {
      * Listen to updates from the Point Cloud and Tango Events and Pose.
      */
     private void startupTango() {
+
+
         ArrayList<TangoCoordinateFramePair> framePairs = new ArrayList<TangoCoordinateFramePair>();
 
         framePairs.add(new TangoCoordinateFramePair(TangoPoseData.COORDINATE_FRAME_START_OF_SERVICE,
@@ -271,30 +237,32 @@ public class AutonomyActivity extends Activity {
                 // Make sure to have atomic access to Tango Pose Data so that
                 // render loop doesn't interfere while Pose call back is updating
                 // the data.
-                synchronized (mUiPoseLock) {
+                synchronized (mPoseLock) {
                     mPose = pose;
-                    autonomyLogic.setMPose(mPose);
+                    data.setMPose(mPose);
 
                     mCurrentPoseTimeStamp = (float) pose.timestamp;
                     mPoseDelta = mCurrentPoseTimeStamp - mLastPoseTimeStamp;
                 }
 
-                float translation[] = mPose.getTranslationAsFloats();
-                String poseViewString = "Pose (x, y, z): (" + decimalFormat.format(translation[mPose.INDEX_TRANSLATION_X]) + ", " +
-                        decimalFormat.format(translation[mPose.INDEX_TRANSLATION_Y]) + ", " +
-                        decimalFormat.format(translation[mPose.INDEX_TRANSLATION_Z]) + ")";
-
-                connection.sendMessage("-m" + poseViewString);
-
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        float translation[] = mPose.getTranslationAsFloats();
-                        String poseViewString = "Pose (x, y, z): (" + decimalFormat.format(translation[mPose.INDEX_TRANSLATION_X]) + ", " +
-                                decimalFormat.format(translation[mPose.INDEX_TRANSLATION_Y]) + ", " +
-                                decimalFormat.format(translation[mPose.INDEX_TRANSLATION_Z]) + ")";
-                        poseView.setText(poseViewString);
-                        //mAverageZTextView.setText(FORMAT_THREE_DECIMAL.format(averageDepth));
+                        try {
+                            float translation[] = logicContext.getData().getMPose().getTranslationAsFloats();
+                            String poseViewString = "Pose (x, y, z): (" + FORMAT_THREE_DECIMAL.format(translation[mPose.INDEX_TRANSLATION_X]) + ", " +
+                                    FORMAT_THREE_DECIMAL.format(translation[mPose.INDEX_TRANSLATION_Y]) + ", " +
+                                    FORMAT_THREE_DECIMAL.format(translation[mPose.INDEX_TRANSLATION_Z]) + ")";
+                            poseView.setText(poseViewString);
+
+                            String yawString = "Yaw (degrees): " + data.getYaw();
+                            yawView.setText(yawString);
+
+                            String adjustedAngleString = logicContext.getLogicState().getStatus();
+                            adjustedAngleView.setText(adjustedAngleString);
+                        } catch(NullPointerException e) {
+                            e.printStackTrace();
+                        }
                     }
                 });
             }
@@ -310,20 +278,16 @@ public class AutonomyActivity extends Activity {
                 final double pointCloudFrameDelta =
                         (currentTimeStamp - mPointCloudPreviousTimeStamp) * SECS_TO_MILLISECS;
                 mPointCloudPreviousTimeStamp = currentTimeStamp;
-                final double averageDepth = getAveragedDepth(pointCloud.points,
-                        pointCloud.numPoints);
 
                 mPointCloudTimeToNextUpdate -= pointCloudFrameDelta;
 
                 if (mPointCloudTimeToNextUpdate < 0.0) {
                     mPointCloudTimeToNextUpdate = UPDATE_INTERVAL_MS;
-                    final String pointCountString = Integer.toString(pointCloud.numPoints);
 
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            //mPointCountTextView.setText(pointCountString);
-                            //mAverageZTextView.setText(FORMAT_THREE_DECIMAL.format(averageDepth));
+                            // If necessary, add UI debugging messages here.
                         }
                     });
                 }
@@ -394,46 +358,6 @@ public class AutonomyActivity extends Activity {
 //    public void onFirstPersonClicked(View v) {
 //        mRenderer.setFirstPersonView();
 //    }
-//
-//    /**
-//     * Third Person button onClick callback.
-//     */
-//    public void onThirdPersonClicked(View v) {
-//        mRenderer.setThirdPersonView();
-//    }
-//
-//    /**
-//     * Top-down button onClick callback.
-//     */
-//    public void onTopDownClicked(View v) {
-//        mRenderer.setTopDownView();
-//    }
-//
-//    @Override
-//    public boolean onTouchEvent(MotionEvent event) {
-//        mRenderer.onTouchEvent(event);
-//        return true;
-//    }
-
-    /**
-     * Calculates the average depth from a point cloud buffer.
-     *
-     * @param pointCloudBuffer
-     * @param numPoints
-     * @return Average depth.
-     */
-    private float getAveragedDepth(FloatBuffer pointCloudBuffer, int numPoints) {
-        float totalZ = 0;
-        float averageZ = 0;
-        if (numPoints != 0) {
-            int numFloats = 4 * numPoints;
-            for (int i = 2; i < numFloats; i = i + 4) {
-                totalZ = totalZ + pointCloudBuffer.get(i);
-            }
-            averageZ = totalZ / numPoints;
-        }
-        return averageZ;
-    }
 
     /**
      * Query the display's rotation.

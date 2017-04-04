@@ -64,4 +64,12 @@
         android:id="@+id/depthView"
         android:layout_below="@+id/yawView"
         android:layout_alignParentStart="true" />
+
+    <TextView
+        android:id="@+id/textView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:layout_below="@+id/depthView"
+        android:text="TextView" />
 </RelativeLayout>
