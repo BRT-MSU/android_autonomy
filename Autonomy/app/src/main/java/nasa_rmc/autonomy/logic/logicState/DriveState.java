@@ -190,7 +190,7 @@ public class DriveState implements LogicState {
         subMessages.put(SubMessagePrefix.LEFT_MOTOR, reverseCoefficient * speed);
         subMessages.put(SubMessagePrefix.RIGHT_MOTOR, reverseCoefficient * speed);
         Message message = new Message(forwardingPrefix, subMessages);
-        //logicContext.getConnection().sendMessage(message.getMessage());
+        logicContext.getConnection().sendMessage(message.getMessage());
     }
 
     private void driveLeft(int speed) {
@@ -202,7 +202,7 @@ public class DriveState implements LogicState {
         subMessages.put(SubMessagePrefix.LEFT_MOTOR, -1 * reverseCoefficient * speed);
         subMessages.put(SubMessagePrefix.RIGHT_MOTOR, reverseCoefficient * speed);
         Message message = new Message(forwardingPrefix, subMessages);
-        //logicContext.getConnection().sendMessage(message.getMessage());
+        logicContext.getConnection().sendMessage(message.getMessage());
     }
 
     private void driveRight(int speed) {
@@ -214,6 +214,6 @@ public class DriveState implements LogicState {
         subMessages.put(SubMessagePrefix.LEFT_MOTOR, reverseCoefficient * speed);
         subMessages.put(SubMessagePrefix.RIGHT_MOTOR, -1 * reverseCoefficient * speed);
         Message message = new Message(forwardingPrefix, subMessages);
-        //logicContext.getConnection().sendMessage(message.getMessage());
+        logicContext.getConnection().sendMessage(message.getMessage());
     }
 }
