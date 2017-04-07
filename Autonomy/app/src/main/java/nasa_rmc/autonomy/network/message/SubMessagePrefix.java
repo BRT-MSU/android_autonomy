@@ -1,4 +1,4 @@
-package nasa_rmc.autonomy;
+package nasa_rmc.autonomy.network.message;
 
 /**
  * Created by atomlinson on 4/3/17.

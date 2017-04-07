@@ -1,9 +1,16 @@
-package nasa_rmc.autonomy;
+package nasa_rmc.autonomy.logic.logicState;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
+import nasa_rmc.autonomy.data.Coordinates;
+import nasa_rmc.autonomy.data.Itinerary;
+import nasa_rmc.autonomy.logic.LogicContext;
+import nasa_rmc.autonomy.network.message.ForwardingPrefix;
+import nasa_rmc.autonomy.network.message.Message;
+import nasa_rmc.autonomy.network.message.SubMessagePrefix;
 
 /**
  * Created by atomlinson on 3/31/17.
@@ -15,7 +22,6 @@ public class DriveState implements LogicState {
     private int motorSpeed;
 
     private boolean isReverse;
-    public void setReverse(boolean isReverse) { this.isReverse = isReverse; }
 
     private ArrayList<Itinerary> itineraries;
 
@@ -36,7 +42,7 @@ public class DriveState implements LogicState {
     private String status;
     public String getStatus() { return status; }
 
-    DriveState(LogicContext logicContext, ArrayList<Itinerary> itineraries) {
+    public DriveState(LogicContext logicContext, ArrayList<Itinerary> itineraries) {
         this.logicContext = logicContext;
         this.itineraries = itineraries;
 
@@ -46,6 +52,12 @@ public class DriveState implements LogicState {
 
     @Override
     public void run() throws InterruptedException {
+        if (itineraries.size() == 0) {
+            logicContext.setLogicState(logicContext.getTerminateState());
+            logicContext.getLogicState().run();
+            return;
+        }
+
         Itinerary itinerary = itineraries.remove(0);
 
         while(!itinerary.isFinalDestinationReached()) {
@@ -59,8 +71,15 @@ public class DriveState implements LogicState {
             TimeUnit.MILLISECONDS.sleep(DRIVE_COMMAND_DELAY);
         }
 
-        logicContext.setLogicState(logicContext.getDigState());
-        logicContext.getLogicState().run();
+        if (itinerary.getItineraryPurpose() == Itinerary.ItineraryPurpose.DIG) {
+            isReverse = true;
+            logicContext.setLogicState(logicContext.getDigState());
+            logicContext.getLogicState().run();
+        } else {
+            isReverse = false;
+            logicContext.setLogicState(logicContext.getDumpState());
+            logicContext.getLogicState().run();
+        }
     }
 
     private void driveToCoordinates(Coordinates coordinates) {
@@ -77,14 +96,17 @@ public class DriveState implements LogicState {
         }
 
         if (withinAngleTolerance) {
-            status = "Going straight at " + Double.toString(actualAngleToCoordinates) + " to get to " + coordinates.toString();
+            status = "Going straight at " + Double.toString(actualAngleToCoordinates) + " to get to " + coordinates.toString()
+                    + "(isReverse: " + isReverse;
             driveForward(motorSpeed);
         } else {
             if (actualAngleToCoordinates < 0) {
-                status = "Turning left at " + Double.toString(actualAngleToCoordinates) + " to get to " + coordinates.toString();
+                status = "Turning left at " + Double.toString(actualAngleToCoordinates) + " to get to " + coordinates.toString()
+                        + "(isReverse: " + isReverse;
                 driveLeft(motorSpeed);
             } else {
-                status = "Turning right at " + Double.toString(actualAngleToCoordinates) + " to get to " + coordinates.toString();
+                status = "Turning right at " + Double.toString(actualAngleToCoordinates) + " to get to " + coordinates.toString()
+                        + "(isReverse: " + isReverse;
                 driveRight(motorSpeed);
             }
         }

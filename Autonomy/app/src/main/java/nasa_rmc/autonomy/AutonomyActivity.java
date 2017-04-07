@@ -4,16 +4,10 @@ import android.app.Activity;
 import android.hardware.display.DisplayManager;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.Display;
-import android.view.MotionEvent;
-import android.view.View;
-import android.widget.Button;
-import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.atap.tangoservice.Tango;
-import com.google.atap.tangoservice.TangoCameraIntrinsics;
 import com.google.atap.tangoservice.TangoConfig;
 import com.google.atap.tangoservice.TangoCoordinateFramePair;
 import com.google.atap.tangoservice.TangoErrorException;
@@ -22,20 +16,17 @@ import com.google.atap.tangoservice.TangoInvalidException;
 import com.google.atap.tangoservice.TangoOutOfDateException;
 import com.google.atap.tangoservice.TangoPointCloudData;
 import com.google.atap.tangoservice.TangoPoseData;
-import com.google.atap.tangoservice.TangoXyzIjData;
 import com.projecttango.tangosupport.TangoPointCloudManager;
 import com.projecttango.tangosupport.TangoSupport;
 import com.projecttango.tangosupport.ux.TangoUx;
 import com.projecttango.tangosupport.ux.UxExceptionEvent;
 import com.projecttango.tangosupport.ux.UxExceptionEventListener;
 
-//import org.rajawali3d.scene.ASceneFrameCallback;
-//import org.rajawali3d.surface.RajawaliSurfaceView;
-
-import java.nio.DoubleBuffer;
-import java.nio.FloatBuffer;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+
+import nasa_rmc.autonomy.data.Data;
+import nasa_rmc.autonomy.logic.LogicContext;
 
 /**
  * Main Activity class for autonomy.
@@ -61,8 +52,6 @@ public class AutonomyActivity extends Activity {
     private boolean mIsConnected = false;
 
     private double mPointCloudTimeToNextUpdate = UPDATE_INTERVAL_MS;
-
-    private int mDisplayRotation = 0;
 
     private TangoPoseData mPose;
 
@@ -123,9 +112,6 @@ public class AutonomyActivity extends Activity {
 
                 @Override
                 public void onDisplayChanged(int displayId) {
-                    synchronized (this) {
-                        setDisplayRotation();
-                    }
                 }
 
                 @Override
@@ -186,7 +172,7 @@ public class AutonomyActivity extends Activity {
                         mTango.connect(mConfig);
                         startupTango();
                         mIsConnected = true;
-                        setDisplayRotation();
+                        data.setmIsConnected(mIsConnected);
                     } catch (TangoOutOfDateException e) {
                         Log.e(TAG, getString(R.string.exception_out_of_date), e);
                     } catch (TangoErrorException e) {
@@ -219,8 +205,6 @@ public class AutonomyActivity extends Activity {
      * Listen to updates from the Point Cloud and Tango Events and Pose.
      */
     private void startupTango() {
-
-
         ArrayList<TangoCoordinateFramePair> framePairs = new ArrayList<TangoCoordinateFramePair>();
 
         framePairs.add(new TangoCoordinateFramePair(TangoPoseData.COORDINATE_FRAME_START_OF_SERVICE,
@@ -248,21 +232,16 @@ public class AutonomyActivity extends Activity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        try {
-                            float translation[] = logicContext.getData().getMPose().getTranslationAsFloats();
-                            String poseViewString = "Pose (x, y, z): (" + FORMAT_THREE_DECIMAL.format(translation[mPose.INDEX_TRANSLATION_X]) + ", " +
-                                    FORMAT_THREE_DECIMAL.format(translation[mPose.INDEX_TRANSLATION_Y]) + ", " +
-                                    FORMAT_THREE_DECIMAL.format(translation[mPose.INDEX_TRANSLATION_Z]) + ")";
-                            poseView.setText(poseViewString);
+                        // These textViews are strictly for debugging purposes
+                        String adjustedAngleString = logicContext.getLogicState().getStatus();
+                        adjustedAngleView.setText(adjustedAngleString);
 
-                            String yawString = "Yaw (degrees): " + data.getYaw();
-                            yawView.setText(yawString);
+                        String poseViewString = "Pose (x, y): (" + FORMAT_THREE_DECIMAL.format(data.getXTranslation()) + ", " +
+                                FORMAT_THREE_DECIMAL.format(data.getYTranslation()) + ")";
+                        poseView.setText(poseViewString);
 
-                            String adjustedAngleString = logicContext.getLogicState().getStatus();
-                            adjustedAngleView.setText(adjustedAngleString);
-                        } catch(NullPointerException e) {
-                            e.printStackTrace();
-                        }
+                        String yawString = "Yaw (degrees): " + data.getYaw();
+                        yawView.setText(yawString);
                     }
                 });
             }
@@ -351,21 +330,6 @@ public class AutonomyActivity extends Activity {
             }
         }
     };
-
-//    /**
-//     * First Person button onClick callback.
-//     */
-//    public void onFirstPersonClicked(View v) {
-//        mRenderer.setFirstPersonView();
-//    }
-
-    /**
-     * Query the display's rotation.
-     */
-    private void setDisplayRotation() {
-        Display display = getWindowManager().getDefaultDisplay();
-        mDisplayRotation = display.getRotation();
-    }
 
     /**
      * Display toast on UI thread.

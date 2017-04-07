@@ -1,4 +1,4 @@
-package nasa_rmc.autonomy;
+package nasa_rmc.autonomy.logic.logicState;
 
 /**
  * Created by atomlinson on 3/31/17.

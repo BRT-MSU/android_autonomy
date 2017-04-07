@@ -1,4 +1,4 @@
-package nasa_rmc.autonomy;
+package nasa_rmc.autonomy.network.message;
 
 import java.util.Map;
 
@@ -11,7 +11,7 @@ public final class Message {
     public String getMessage() { return message; }
 
     // Constructor expects a forwardingPrefix and a subMessage map.
-    Message(ForwardingPrefix forwardingPrefix, Map<SubMessagePrefix, Integer> subMessages){
+    public Message(ForwardingPrefix forwardingPrefix, Map<SubMessagePrefix, Integer> subMessages){
         String subMessageString = "";
 
         for (SubMessagePrefix key: subMessages.keySet()) {

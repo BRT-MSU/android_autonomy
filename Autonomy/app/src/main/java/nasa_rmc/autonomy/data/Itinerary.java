@@ -1,6 +1,8 @@
-package nasa_rmc.autonomy;
+package nasa_rmc.autonomy.data;
 
 import java.util.ArrayList;
+
+import nasa_rmc.autonomy.data.Coordinates;
 
 /**
  * Created by atomlinson on 3/31/17.
@@ -8,13 +10,19 @@ import java.util.ArrayList;
 
 public class Itinerary {
     private ArrayList<Coordinates> path;
-
     private ArrayList<Coordinates> getPath() { return path; }
 
-    public boolean isFinalDestinationReached() { return path.size() == 0; }
+    public enum ItineraryPurpose {
+        DIG,
+        DUMP;
+    }
 
-    Itinerary(ArrayList<Coordinates> path) {
+    private ItineraryPurpose itineraryPurpose;
+    public ItineraryPurpose getItineraryPurpose() { return this.itineraryPurpose; }
+
+    public Itinerary(ArrayList<Coordinates> path, ItineraryPurpose itineraryPurpose) {
         this.path = path;
+        this.itineraryPurpose = itineraryPurpose;
     }
 
     public void setInitialPosition(Coordinates initialPosition) {
@@ -26,4 +34,6 @@ public class Itinerary {
     public void arrivedAtCoordinates() {
         path.remove(0);
     }
+
+    public boolean isFinalDestinationReached() { return path.size() == 0; }
 }

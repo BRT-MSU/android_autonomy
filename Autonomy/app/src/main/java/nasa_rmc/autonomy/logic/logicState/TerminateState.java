@@ -1,4 +1,9 @@
-package nasa_rmc.autonomy;
+package nasa_rmc.autonomy.logic.logicState;
+
+import java.util.concurrent.TimeUnit;
+
+import nasa_rmc.autonomy.logic.LogicContext;
+import nasa_rmc.autonomy.logic.logicState.LogicState;
 
 /**
  * Created by atomlinson on 3/31/17.
@@ -10,12 +15,12 @@ public class TerminateState implements LogicState {
     private String status;
     public String getStatus() { return status; }
 
-    TerminateState(LogicContext logicContext) {
+    public TerminateState(LogicContext logicContext) {
         this.logicContext = logicContext;
     }
 
     @Override
     public void run() {
-
+        status = "Terminated.";
     }
 }

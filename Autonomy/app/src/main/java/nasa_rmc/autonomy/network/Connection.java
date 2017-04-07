@@ -1,4 +1,4 @@
-package nasa_rmc.autonomy;
+package nasa_rmc.autonomy.network;
 
 import java.io.*;
 import java.net.ConnectException;

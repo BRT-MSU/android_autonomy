@@ -1,25 +1,27 @@
-package nasa_rmc.autonomy;
+package nasa_rmc.autonomy.logic.logicState;
 
 import java.util.concurrent.TimeUnit;
+
+import nasa_rmc.autonomy.logic.LogicContext;
 
 /**
  * Created by atomlinson on 3/31/17.
  */
 
-public class InitializeState implements LogicState {
+public class DumpState implements LogicState {
     private LogicContext logicContext;
 
     private String status;
     public String getStatus() { return status; }
 
-    InitializeState(LogicContext logicContext) {
+    public DumpState(LogicContext logicContext) {
         this.logicContext = logicContext;
     }
 
     @Override
     public void run() throws InterruptedException {
-        status = "Initialized.";
-        TimeUnit.SECONDS.sleep(1);
+        status = "Dumping.";
+        TimeUnit.SECONDS.sleep(2);
         logicContext.setLogicState(logicContext.getDriveState());
         logicContext.getLogicState().run();
     }
