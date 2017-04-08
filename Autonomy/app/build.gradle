@@ -2,7 +2,7 @@ apply plugin: 'com.android.application'
 
 android {
     compileSdkVersion 23
-    buildToolsVersion "21.1.2"
+    buildToolsVersion '25.0.0'
 
     defaultConfig {
         applicationId "nasa_rmc.autonomy"
@@ -44,4 +44,5 @@ dependencies {
     compile (name: 'tango_support_java_lib', ext: 'aar')
     compile 'org.rajawali3d:rajawali:1.0.325@aar'
     compile 'com.android.support:appcompat-v7:23.0.0'
+    testCompile 'junit:junit:4.12'
 }
