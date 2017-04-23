@@ -1,9 +1,16 @@
 package nasa_rmc.autonomy;
 
 import android.app.Activity;
+import android.content.pm.PackageManager;
+import android.hardware.Camera;
 import android.hardware.display.DisplayManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.util.Log;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -22,11 +29,13 @@ import com.projecttango.tangosupport.ux.TangoUx;
 import com.projecttango.tangosupport.ux.UxExceptionEvent;
 import com.projecttango.tangosupport.ux.UxExceptionEventListener;
 
+import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 
 import nasa_rmc.autonomy.data.Data;
 import nasa_rmc.autonomy.logic.LogicContext;
+import nasa_rmc.autonomy.logic.logicState.PictureResult;
 
 /**
  * Main Activity class for autonomy.
@@ -73,6 +82,9 @@ public class AutonomyActivity extends Activity {
     TextView rotationView;
     TextView yawView;
     TextView depthView;
+    TextView resultView;
+
+    private SurfaceHolder holder;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -82,6 +94,12 @@ public class AutonomyActivity extends Activity {
 
         mPointCloudManager = new TangoPointCloudManager();
         mTangoUx = setupTangoUxAndLayout();
+
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_DENIED) {
+            ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.CAMERA}, 0);
+        }
+
+        holder = ((SurfaceView)findViewById(R.id.surfaceView)).getHolder();
 
         adjustedAngleView = (TextView) findViewById(R.id.adjustedAngleView);
 
@@ -93,8 +111,10 @@ public class AutonomyActivity extends Activity {
 
         depthView = (TextView) findViewById(R.id.depthView);
 
+        resultView = (TextView) findViewById(R.id.resultView);
+
         data = new Data();
-        logicContext = new LogicContext(data);
+        logicContext = new LogicContext(this, data);
 
         new Thread(new Runnable() {
             @Override
@@ -345,5 +365,79 @@ public class AutonomyActivity extends Activity {
                 finish();
             }
         });
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        if (requestCode == 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(this, "Got Camera Permission", Toast.LENGTH_SHORT).show();
+            //getCameras();
+        } else if (requestCode == 0 && grantResults[0] == PackageManager.PERMISSION_DENIED) {
+            Toast.makeText(this, "Couldn't get Camera permission", Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(this, "What?", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    public void takePicture(final int id) {
+        final Camera cam = Camera.open(id);
+        cam.setDisplayOrientation(90);
+        try {
+            cam.setPreviewDisplay(holder);
+        } catch (IOException e){}
+        cam.enableShutterSound(false);
+        cam.startPreview();
+        cam.takePicture(null, null,
+                new Camera.PictureCallback() {
+                    @Override
+                    public void onPictureTaken(byte[] data, Camera camera) {
+                        cam.stopPreview();
+                        cam.release();
+
+                        getPictureResult(id, PictureResult.process(data, id));
+                    }
+                });
+    }
+
+    private int curPosition = 0;
+    private void getPictureResult(int id, PictureResult result) {
+        Toast.makeText(this, "Got picture: "+id+ " "+result.side+" "+result.left+" "+result.right, Toast.LENGTH_SHORT).show();
+        if (result.side == null) {
+            if (curPosition == 90 && id == 1) {
+                resultView.setText("No sign");
+                return;
+            }
+            if (id == 1) {
+                curPosition += 90;
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        takePicture(0);
+                    }
+                }, 1000);
+            } else {
+                takePicture(id + 1);
+            }
+        } else {
+            String direction = null;
+            if (curPosition == 0 && id == 0) {
+                direction = "north";
+            } else if (curPosition == 0 && id == 1) {
+                direction = "south";
+            } else if (curPosition == 90 && id == 0) {
+                direction = "west";
+            } else if (curPosition == 90 && id == 1) {
+                direction = "east";
+            }
+            resultView.setText(result.side+ ": "+direction);
+        }
+    }
+
+    private void ezWait(Object o) {
+        try {
+            synchronized (o) {
+                o.wait();
+            }
+        } catch (InterruptedException e) { }
     }
 }

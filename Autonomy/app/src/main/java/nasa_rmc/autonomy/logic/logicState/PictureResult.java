@@ -1,9 +1,5 @@
 package nasa_rmc.autonomy.logic.logicState;
 
-/**
- * Created by Joe on 4/8/2017.
- */
-
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -19,9 +15,6 @@ import java.nio.ByteBuffer;
 public class PictureResult {
     public String side;
     public int left, right;
-    public static final float PERCENTAGE_HEIGHT_THRESHOLD = 0.15f;
-    public static final float PERCENTAGE_WIDTH_THRESHOLD = 0.15f;
-
     private PictureResult(String side, int left, int right) {
         this.side = side;
         this.left = left;
@@ -53,15 +46,14 @@ public class PictureResult {
         Log.d("Bitmap", "Done decoding");
         try {
             Integer leftEdge = findLeftEdge(bitmap);
-            Integer rightEdge = findRightEdge(bitmap);
-            if (leftEdge == null || rightEdge == null ||
-                (float)(leftEdge-rightEdge)/(float)bitmap.getWidth() < PERCENTAGE_WIDTH_THRESHOLD) {
+            if (leftEdge == null) {
                 return new PictureResult(null, -1, -1);
             }
             if (leftEdge > bitmap.getWidth() / 2) {
                 return new PictureResult("A", leftEdge, -1);
             }
 
+            Integer rightEdge = findRightEdge(bitmap);
             int center = (leftEdge + rightEdge) / 2;
             if (center > bitmap.getWidth() / 2) {
                 return new PictureResult("A", leftEdge, rightEdge);
@@ -75,32 +67,22 @@ public class PictureResult {
     }
 
     public static Integer findLeftEdge(Bitmap bitmap) {
-        int counter = 0;
         for (int x = 0; x < bitmap.getWidth(); x++) {
-            counter = 0;
             for (int y = 0; y < bitmap.getHeight(); y++) {
                 if (threshhold(bitmap.getPixel(x, y))) {
-                    counter++;
+                    return x;
                 }
-            }
-            if((float)counter/(float)bitmap.getWidth() > PERCENTAGE_HEIGHT_THRESHOLD){
-                return x;
             }
         }
         return null;
     }
 
     public static Integer findRightEdge(Bitmap bitmap) {
-        int counter = 0;
         for (int x = bitmap.getWidth() -1; x >= 0; x--) {
-            counter = 0;
             for (int y = 0; y < bitmap.getHeight(); y++) {
                 if (threshhold(bitmap.getPixel(x, y))) {
-                    counter++;
+                    return x;
                 }
-            }
-            if((float)counter/(float)bitmap.getWidth() > PERCENTAGE_HEIGHT_THRESHOLD){
-                return x;
             }
         }
         return null;
