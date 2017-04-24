@@ -48,6 +48,9 @@ public class LogicContext {
 
     private ArrayList<Coordinates> testPath = new ArrayList<>();
 
+    private final String AUTONOMOY_ACTIVATION_MESSAGE = "activate";
+    private final String AUTONOMY_DEACTIVATION_MESSAGE = "deactivate";
+
     public LogicContext(Data data){
         testPath.add(new Coordinates(0.0, 1.0));
         testPath.add(new Coordinates(0.0, 2.0));
@@ -68,7 +71,7 @@ public class LogicContext {
     public void start() {
         try {
             while(true) {
-                if(data.getMIsConnected()) {
+                if(data.getMIsConnected() && connection.getMessage() == AUTONOMOY_ACTIVATION_MESSAGE) {
                     logicState.run();
                     break;
                 }

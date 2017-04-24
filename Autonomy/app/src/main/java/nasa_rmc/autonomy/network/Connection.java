@@ -175,6 +175,10 @@ public class Connection {
         }
     }
 
+    public String getMessage() {
+        return serverQueue.poll();
+    }
+
     public static Connection main() {
         String CLIENT_IP_ADDRESS = "0.0.0.0";
         int CLIENT_PORT_NUMBER = 1123;
