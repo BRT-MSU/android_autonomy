@@ -1,8 +1,13 @@
 package nasa_rmc.autonomy.logic.logicState;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import nasa_rmc.autonomy.logic.LogicContext;
+import nasa_rmc.autonomy.network.message.ForwardingPrefix;
+import nasa_rmc.autonomy.network.message.Message;
+import nasa_rmc.autonomy.network.message.SubMessagePrefix;
 
 /**
  * Created by atomlinson on 3/31/17.
@@ -21,9 +26,9 @@ public class InitializeState implements LogicState {
     @Override
     public void run() throws InterruptedException {
         status = "Initializing.";
-        TimeUnit.SECONDS.sleep(2);
+        TimeUnit.SECONDS.sleep(1);
 
-        // TODO: Add initialization code here
+        logicContext.getAutonomyActivity().initialize();
 
         // Initialization should return variables like these (x translation, y translation, and angle)
         double tangoXTranslationAdjustment = 2.84;
