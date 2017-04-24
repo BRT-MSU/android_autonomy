@@ -3,6 +3,7 @@ package nasa_rmc.autonomy.logic;
 import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 
+import nasa_rmc.autonomy.AutonomyActivity;
 import nasa_rmc.autonomy.network.Connection;
 import nasa_rmc.autonomy.data.Coordinates;
 import nasa_rmc.autonomy.data.Data;
@@ -19,6 +20,9 @@ import nasa_rmc.autonomy.logic.logicState.TerminateState;
  */
 
 public class LogicContext {
+    private AutonomyActivity autonomyActivity;
+    public AutonomyActivity getAutonomyActivity() { return this.autonomyActivity; }
+
     private Data data;
     public Data getData() { return data; }
 
@@ -51,11 +55,8 @@ public class LogicContext {
     private final String AUTONOMOY_ACTIVATION_MESSAGE = "activate";
     private final String AUTONOMY_DEACTIVATION_MESSAGE = "deactivate";
 
-    public LogicContext(Data data){
-        testPath.add(new Coordinates(0.0, 1.0));
-        testPath.add(new Coordinates(0.0, 2.0));
-        testPath.add(new Coordinates(1.0, 2.0));
-
+    public LogicContext(AutonomyActivity autonomyActivity, Data data){
+        this.autonomyActivity = autonomyActivity;
         this.data = data;
         this.connection = Connection.main();
 
@@ -71,7 +72,7 @@ public class LogicContext {
     public void start() {
         try {
             while(true) {
-                if(data.getMIsConnected() && connection.getMessage() == AUTONOMOY_ACTIVATION_MESSAGE) {
+                if(data.getMIsConnected()) { //&& connection.getMessage() == AUTONOMOY_ACTIVATION_MESSAGE) {
                     logicState.run();
                     break;
                 }
